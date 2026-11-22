@@ -176,6 +176,15 @@ with shared.gradio_root:
                     if isinstance(default_prompt, str) and default_prompt != '':
                         shared.gradio_root.load(lambda: default_prompt, outputs=prompt)
 
+                    with gr.Column(visible=args_manager.args.preset == 'clothing_change') as clothing_prompt_panel:
+                        gr.Markdown('Clothing prompt details')
+                        clothing_prompt_ctrls = [
+                            gr.Textbox(label='Prompt 1 - Clothes / outfit', placeholder='e.g. a red evening dress with lace sleeves'),
+                            gr.Textbox(label='Prompt 2 - Boots / footwear', placeholder='e.g. black knee-high leather boots'),
+                            gr.Textbox(label='Prompt 3 - Additional details', placeholder='e.g. matching belt, gloves, or jewelry')
+                        ]
+                    clothing_prompt_reset_values = ['', '', '']
+
                 with gr.Column(scale=3, min_width=0):
                     generate_button = gr.Button(label="Generate", value="Generate", elem_classes='type_row', elem_id='generate_button', visible=True)
                     reset_button = gr.Button(label="Reconnect", value="Reconnect", elem_classes='type_row', elem_id='reset_button', visible=False)
@@ -223,7 +232,14 @@ with shared.gradio_root:
                             for image_count in range(modules.config.default_controlnet_image_count):
                                 image_count += 1
                                 with gr.Column():
-                                    ip_image = grh.Image(label='Image', source='upload', type='numpy', show_label=False, height=300, value=modules.config.default_ip_images[image_count])
+                                    image_label = 'Image'
+                                    if args_manager.args.preset == 'clothing_change':
+                                        image_label = {
+                                            1: 'Image Prompt 1 - Clothes / outfit',
+                                            2: 'Image Prompt 2 - Boots / footwear',
+                                            3: 'Image Prompt 3 - Additional details'
+                                        }.get(image_count, 'Image')
+                                    ip_image = grh.Image(label=image_label, source='upload', type='numpy', show_label=False, height=300, value=modules.config.default_ip_images[image_count])
                                     ip_images.append(ip_image)
                                     ip_ctrls.append(ip_image)
                                     with gr.Column(visible=modules.config.default_image_prompt_advanced_checkbox) as ad_col:
@@ -262,6 +278,56 @@ with shared.gradio_root:
                                 inpaint_advanced_masking_checkbox = gr.Checkbox(label='Enable Advanced Masking Features', value=modules.config.default_inpaint_advanced_masking_checkbox)
                                 inpaint_mode = gr.Dropdown(choices=modules.flags.inpaint_options, value=modules.config.default_inpaint_method, label='Method')
                                 inpaint_additional_prompt = gr.Textbox(placeholder="Describe what you want to inpaint.", elem_id='inpaint_additional_prompt', label='Inpaint Additional Prompt', visible=False)
+                                body_ratio_controls = []
+                                body_adjustment_ctrls = []
+                                with gr.Accordion('Body Part Adjustments', open=True,
+                                                  visible=args_manager.args.preset == 'body_change') as body_adjustments_panel:
+                                    gr.Markdown('Ratio values are approximate percentage changes: zero preserves the inpainted feature, and positive or negative values request corresponding increases or decreases. Breast form: negative is flatter/less projected; positive is rounder/more projected. Keep the mask tight; anything masked may be regenerated.')
+                                    with gr.Row():
+                                        body_overall_build = gr.Slider(label='Overall build (% change)', minimum=-200, maximum=200, step=1, value=0)
+                                        body_bust_chest = gr.Slider(label='Bust / chest (% change)', minimum=-200, maximum=200, step=1, value=0)
+                                        body_breast_form = gr.Slider(
+                                            label='Breast form (% change)', minimum=-200, maximum=200, step=1, value=0,
+                                            info='Zero preserves the original form; negative is flatter/less projected, positive is rounder/more projected.'
+                                        )
+                                    with gr.Row():
+                                        body_waist = gr.Slider(label='Waist width (% change)', minimum=-200, maximum=200, step=1, value=0)
+                                        body_hips = gr.Slider(label='Hip width (% change)', minimum=-200, maximum=200, step=1, value=0)
+                                        body_thighs = gr.Slider(label='Thigh fullness (% change)', minimum=-200, maximum=200, step=1, value=0)
+                                    with gr.Row():
+                                        body_butt = gr.Slider(label='Butt / glutes (% change)', minimum=-200, maximum=200, step=1, value=0)
+                                        body_lips = gr.Slider(label='Lip fullness (% change)', minimum=-200, maximum=200, step=1, value=0)
+                                        body_hair_length = gr.Slider(label='Hair length (% change)', minimum=-200, maximum=200, step=1, value=0)
+                                    body_ratio_reset_button = gr.Button(value='Reset ratios')
+                                    with gr.Row():
+                                        body_hair_color = gr.Textbox(label='Target hair color', placeholder='e.g. auburn')
+                                        body_hair_color_strength = gr.Slider(label='Hair color change strength', minimum=0, maximum=10, step=1, value=0)
+                                    with gr.Row():
+                                        body_eye_color = gr.Textbox(label='Target eye color', placeholder='e.g. green')
+                                        body_eye_color_strength = gr.Slider(label='Eye color change strength', minimum=0, maximum=10, step=1, value=0)
+                                    with gr.Row():
+                                        body_ear_shape = gr.Textbox(label='Target ear shape', placeholder='e.g. rounded or pointed')
+                                        body_ear_shape_strength = gr.Slider(label='Ear shape change strength', minimum=0, maximum=10, step=1, value=0)
+
+                                body_ratio_controls = [
+                                    body_overall_build, body_bust_chest, body_breast_form, body_waist, body_hips,
+                                    body_thighs, body_butt, body_lips, body_hair_length
+                                ]
+                                body_ratio_reset_button.click(
+                                    lambda: [0] * len(body_ratio_controls),
+                                    outputs=body_ratio_controls,
+                                    queue=False,
+                                    show_progress=False
+                                )
+                                body_categorical_controls = [
+                                    body_hair_color, body_hair_color_strength,
+                                    body_eye_color, body_eye_color_strength,
+                                    body_ear_shape, body_ear_shape_strength
+                                ]
+                                body_adjustment_ctrls = body_ratio_controls + body_categorical_controls
+                                body_adjustment_reset_values = [0] * len(body_ratio_controls) + [
+                                    '', 0, '', 0, '', 0
+                                ]
                                 outpaint_selections = gr.CheckboxGroup(choices=['Left', 'Right', 'Top', 'Bottom'], value=[], label='Outpaint Direction')
                                 example_inpaint_prompts = gr.Dataset(samples=modules.config.example_inpaint_prompts,
                                                                      label='Additional Prompt Quick List',
@@ -545,7 +611,15 @@ with shared.gradio_root:
                                         outputs=image_input_panel, queue=False, show_progress=False, _js=switch_js)
             ip_advanced.change(lambda: None, queue=False, show_progress=False, _js=down_js)
 
-            current_tab = gr.Textbox(value='uov', visible=False)
+            initial_current_tab = {
+                'uov_tab': 'uov',
+                'ip_tab': 'ip',
+                'inpaint_tab': 'inpaint',
+                'describe_tab': 'desc',
+                'enhance_tab': 'enhance',
+                'metadata_tab': 'metadata'
+            }.get(modules.config.default_selected_image_input_tab_id, 'uov')
+            current_tab = gr.Textbox(value=initial_current_tab, visible=False)
             uov_tab.select(lambda: 'uov', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
             inpaint_tab.select(lambda: 'inpaint', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
             ip_tab.select(lambda: 'ip', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
@@ -793,7 +867,7 @@ with shared.gradio_root:
                         mixing_image_prompt_and_vary_upscale = gr.Checkbox(label='Mixing Image Prompt and Vary/Upscale',
                                                                            value=False)
                         mixing_image_prompt_and_inpaint = gr.Checkbox(label='Mixing Image Prompt and Inpaint',
-                                                                      value=False)
+                                                                      value=modules.config.default_mixing_image_prompt_and_inpaint)
 
                         controlnet_softness = gr.Slider(label='Softness of ControlNet', minimum=0.0, maximum=1.0,
                                                         step=0.001, value=0.25,
@@ -935,7 +1009,15 @@ with shared.gradio_root:
             preset_selection.change(preset_selection_change, inputs=[preset_selection, state_is_generating, inpaint_mode], outputs=load_data_outputs, queue=False, show_progress=True) \
                 .then(fn=style_sorter.sort_styles, inputs=style_selections, outputs=style_selections, queue=False, show_progress=False) \
                 .then(lambda: None, _js='()=>{refresh_style_localization();}') \
-                .then(inpaint_engine_state_change, inputs=[inpaint_engine_state] + enhance_inpaint_mode_ctrls, outputs=enhance_inpaint_engine_ctrls, queue=False, show_progress=False)
+                .then(inpaint_engine_state_change, inputs=[inpaint_engine_state] + enhance_inpaint_mode_ctrls, outputs=enhance_inpaint_engine_ctrls, queue=False, show_progress=False) \
+                .then(lambda preset: [gr.update(visible=preset == 'body_change')] +
+                      [gr.update(value=value) for value in body_adjustment_reset_values] +
+                      [gr.update(visible=preset == 'clothing_change')] +
+                      [gr.update(value=value) for value in clothing_prompt_reset_values],
+                      inputs=preset_selection,
+                      outputs=[body_adjustments_panel] + body_adjustment_ctrls +
+                      [clothing_prompt_panel] + clothing_prompt_ctrls,
+                      queue=False, show_progress=False)
 
         performance_selection.change(lambda x: [gr.update(interactive=not flags.Performance.has_restricted_features(x))] * 11 +
                                                [gr.update(visible=not flags.Performance.has_restricted_features(x))] * 1 +
@@ -1006,6 +1088,8 @@ with shared.gradio_root:
                   enhance_input_image, enhance_checkbox, enhance_uov_method, enhance_uov_processing_order,
                   enhance_uov_prompt_type]
         ctrls += enhance_ctrls
+        ctrls += body_adjustment_ctrls
+        ctrls += clothing_prompt_ctrls
 
         def parse_meta(raw_prompt_txt, is_generating):
             loaded_json = None

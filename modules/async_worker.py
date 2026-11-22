@@ -3,6 +3,8 @@ import threading
 from extras.inpaint_mask import generate_mask_from_image, SAMOptions
 from modules.patch import PatchSettings, patch_settings, patch_all
 import modules.config
+from modules.body_adjustments import build_body_adjustment_prompt
+from modules.clothing_prompt import build_clothing_change_prompt
 
 patch_all()
 
@@ -157,6 +159,43 @@ class AsyncTask:
         self.should_enhance = self.enhance_checkbox and (self.enhance_uov_method != disabled.casefold() or len(self.enhance_ctrls) > 0)
         self.images_to_enhance_count = 0
         self.enhance_stats = {}
+
+        self.body_ratios = {
+            'overall_build': args.pop(),
+            'bust_chest': args.pop(),
+            'breast_form': args.pop(),
+            'waist': args.pop(),
+            'hips': args.pop(),
+            'thighs': args.pop(),
+            'butt': args.pop(),
+            'lips': args.pop(),
+            'hair_length': args.pop()
+        }
+        self.body_hair_color = args.pop()
+        self.body_hair_color_strength = args.pop()
+        self.body_eye_color = args.pop()
+        self.body_eye_color_strength = args.pop()
+        self.body_ear_shape = args.pop()
+        self.body_ear_shape_strength = args.pop()
+        self.prompt = build_body_adjustment_prompt(
+            self.prompt,
+            self.body_ratios,
+            self.body_hair_color,
+            self.body_hair_color_strength,
+            self.body_eye_color,
+            self.body_eye_color_strength,
+            self.body_ear_shape,
+            self.body_ear_shape_strength
+        )
+        self.clothing_prompt_clothes = args.pop()
+        self.clothing_prompt_boots = args.pop()
+        self.clothing_prompt_additional = args.pop()
+        self.prompt = build_clothing_change_prompt(
+            self.prompt,
+            self.clothing_prompt_clothes,
+            self.clothing_prompt_boots,
+            self.clothing_prompt_additional
+        )
 
 async_tasks = []
 

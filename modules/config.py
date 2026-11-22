@@ -427,6 +427,12 @@ default_developer_debug_mode_checkbox = get_config_item_or_set_default(
     validator=lambda x: isinstance(x, bool),
     expected_type=bool
 )
+default_mixing_image_prompt_and_inpaint = get_config_item_or_set_default(
+    key='default_mixing_image_prompt_and_inpaint',
+    default_value=False,
+    validator=lambda x: isinstance(x, bool),
+    expected_type=bool
+)
 default_image_prompt_advanced_checkbox = get_config_item_or_set_default(
     key='default_image_prompt_advanced_checkbox',
     default_value=False,
